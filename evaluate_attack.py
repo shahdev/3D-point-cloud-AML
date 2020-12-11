@@ -28,7 +28,7 @@ tf.reset_default_graph()
 alpha_inp = 1
 alpha_flow = 0
 iter_ = 0
-max_iters = 15000
+max_iters = 10000
 attack_epsilon = 8.0 / 255
 threshold = 0.4
 mu = 0.85
