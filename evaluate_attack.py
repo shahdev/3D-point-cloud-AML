@@ -36,6 +36,7 @@ tau = opt.tau
 
 from tensorflow import set_random_seed
 set_random_seed(2)
+np.random.seed(0)
 
 with tf.device("/gpu:0"):
 	VsPH = tf.placeholder(tf.float64, [None, 3])
