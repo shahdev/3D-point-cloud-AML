@@ -1,5 +1,7 @@
 import numpy as np
 np.random.seed(0)
+from tensorflow import set_random_seed
+set_random_seed(2)
 import scipy.misc, scipy.io
 import time, os, sys
 import threading
