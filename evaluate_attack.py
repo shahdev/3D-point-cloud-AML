@@ -34,6 +34,9 @@ threshold = 0.4
 mu = 0.85
 tau = opt.tau
 
+from tensorflow import set_random_seed
+set_random_seed(2)
+
 with tf.device("/gpu:0"):
 	VsPH = tf.placeholder(tf.float64, [None, 3])
 	VtPH = tf.placeholder(tf.float64, [None, 3])
