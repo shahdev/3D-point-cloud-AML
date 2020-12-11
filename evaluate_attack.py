@@ -382,11 +382,11 @@ def attack(sess):
 
 		print(iter_, l, lm, ld, lf, flush=True) #, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
-			grad_inp_t = l_grad
-			grad_flow_t = l_flow_grad
+			grad_inp_t = l_grad/LA.norm(l_grad)
+			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
 		else:
-			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad
-			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad
+			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad/LA.norm(l_grad)
+			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad/LA.norm(l_flow_grad)
 
 		if opt.spatial_dag == 1:
 			if iter_ % 2 == 0:
