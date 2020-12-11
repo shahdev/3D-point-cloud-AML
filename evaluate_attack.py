@@ -26,13 +26,12 @@ print(util.toMagenta("building graph..."))
 tf.reset_default_graph()
 
 alpha_inp = 1
-alpha_flow = 1
+alpha_flow = 0
 iter_ = 0
 max_iters = 15000
 attack_epsilon = 8.0 / 255
 threshold = 0.4
 mu = 0.85
-lb = 1
 tau = 0.1
 
 with tf.device("/gpu:0"):
@@ -95,10 +94,10 @@ def flow_st(images, flows, data_format='NHWC'):
 
 		# make sure that the input images and flows have consistent shape
 		with tf.control_dependencies(
-			[tf.assert_equal(
-				tf.identity(images_shape[i_H:i_H + 2], name='images_shape_HW'),
-				tf.identity(flows_shape[2:], name='flows_shape_HW')
-			)]
+				[tf.assert_equal(
+					tf.identity(images_shape[i_H:i_H + 2], name='images_shape_HW'),
+					tf.identity(flows_shape[2:], name='flows_shape_HW')
+				)]
 		):
 			# cast the input to float32 for consistency with the rest
 			images = tf.cast(images, 'float32', name='images_float32')
@@ -286,14 +285,19 @@ with tf.device("/gpu:0"):
 
 	loss = loss_mask + opt.lambdaDepth * loss_depth + tau * loss_flow
 
-	grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0], clip_norm=1.0) \
-			+ opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0) \
+	grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0)
 
-	grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0], clip_norm=1.0) \
-			   + opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, flow)[0], clip_norm=1.0) \
-			   + tau * tf.clip_by_norm(tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
+	grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0] \
+								+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
+								+ tau * tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
 
-	test_gradient = tf.nn.l2_normalize(tf.gradients(loss_mask, inputImage)[0])
+	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0], clip_norm=1.0) \
+	# 		+ opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0) \
+
+	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0], clip_norm=1.0) \
+	# 		   + opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, flow)[0], clip_norm=1.0) \
+	# 		   + tau * tf.clip_by_norm(tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
+
 	# grad_inp = tf.gradients(loss, inputImage)[0]
 	# grad_flow = tf.gradients(loss, flow)[0]
 
@@ -354,7 +358,7 @@ def attack(sess):
 	pgd_max = source_img + attack_epsilon
 	pgd_min = source_img - attack_epsilon
 
-	global iter_, alpha_inp, alpha_flow, tau 
+	global iter_, alpha_inp, alpha_flow, tau
 	while iter_ < max_iters:
 		adv_batch = {inputImage: x_adv, renderTrans: target_renderTrans, depthGT: target_depthGT,
 					 maskGT: target_maskGT, flow: flow_adv}
@@ -369,11 +373,11 @@ def attack(sess):
 
 		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
-			grad_inp_t = l_grad / LA.norm(l_grad)
-			grad_flow_t = l_flow_grad / LA.norm(l_flow_grad)
+			grad_inp_t = l_grad
+			grad_flow_t = l_flow_grad
 		else:
-			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad / LA.norm(l_grad)
-			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad / LA.norm(l_flow_grad)
+			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad
+			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad
 
 		if iter_ % 2 == 0:
 			flow_adv = flow_adv - alpha_flow * grad_flow_t
@@ -387,7 +391,7 @@ def attack(sess):
 		if iter_ % 1000 == 499:
 			alpha_inp *= 0.75
 			alpha_flow *= 0.75
-			#tau *= 0.8
+		# tau *= 0.8
 		if iter_ % 500 == 499:
 			adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
 			np.save('%s/adv_%d.npy' % (opt.save_dir, iter_), adv_img)
