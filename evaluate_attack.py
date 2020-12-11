@@ -25,14 +25,14 @@ util.mkdir("results_{0}/{1}".format(opt.group, opt.load))
 print(util.toMagenta("building graph..."))
 tf.reset_default_graph()
 
-alpha_inp = 1
-alpha_flow = 0
+alpha_inp = opt.alpha_inp
+alpha_flow = opt.alpha_flow
 iter_ = 0
 max_iters = 10000
 attack_epsilon = 8.0 / 255
 threshold = 0.4
 mu = 0.85
-tau = 0.1
+tau = opt.tau
 
 with tf.device("/gpu:0"):
 	VsPH = tf.placeholder(tf.float64, [None, 3])

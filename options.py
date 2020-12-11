@@ -34,6 +34,10 @@ def set(training):
 		parser.add_argument("--batchSize",	type=int,	default=1,		help="batch size for evaluation")
 		parser.add_argument("--lambdaDepth", type=float, default=1.0, help="loss weight factor (depth)")
 		parser.add_argument("--save_dir", type=str, help="save directory for perturbed images")
+		parser.add_argument("--alpha_inp", type=float, help="step size for input")
+		parser.add_argument("--alpha_flow", type=float, help="step size for flow")
+		parser.add_argument("--tau", type=float, help="tau for flow")
+
 
 	opt = parser.parse_args()
 
