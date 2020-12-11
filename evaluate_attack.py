@@ -288,11 +288,17 @@ with tf.device("/gpu:0"):
 
 	loss = loss_mask + opt.lambdaDepth * loss_depth + tau * loss_flow
 
-	grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0)
+	grad_inp = tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0]
 
-	grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0] \
+	grad_flow = tf.gradients(loss_mask, flow)[0] \
 								+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
-								+ tau * tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
+								+ tau * tf.gradients(loss_flow, flow)[0]
+
+	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0)
+	#
+	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0] \
+	# 							+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
+	# 							+ tau * tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
 
 	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0], clip_norm=1.0) \
 	# 		+ opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0) \
@@ -371,10 +377,10 @@ def attack(sess):
 			xyz1 = xyz[a].T  # [VHW,3]
 			ml1 = ml[a].reshape([-1])  # [VHW]
 			Vpred[a, 0] = xyz1[ml1 > 0]
-		pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
-		GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
+		# pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
+		# GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
 
-		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		print(iter_, l, lm, ld, lf, flush=True) #, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad
 			grad_flow_t = l_flow_grad
@@ -382,8 +388,13 @@ def attack(sess):
 			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad
 			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad
 
-		if iter_ % 2 == 0:
-			flow_adv = flow_adv - alpha_flow * grad_flow_t
+		if opt.spatial_dag == 1:
+			if iter_ % 2 == 0:
+				flow_adv = flow_adv - alpha_flow * grad_flow_t
+			else:
+				x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
+				x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
+				x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
 		else:
 			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
 			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
