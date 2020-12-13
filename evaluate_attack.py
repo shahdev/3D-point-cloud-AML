@@ -388,18 +388,19 @@ def attack(sess):
 			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad/LA.norm(l_grad)
 			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad/LA.norm(l_flow_grad)
 
-		if opt.spatial_dag == 1:
+		if opt.attack_type == 'spatial_dag':
 			if iter_ % 2 == 0:
 				flow_adv = flow_adv - alpha_flow * grad_flow_t
 			else:
 				x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
 				x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
 				x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
-		else:
+		elif opt.attack_type == 'dag':
 			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
 			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
 			x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
-
+		elif opt.attack_type == 'spatial':
+			flow_adv = flow_adv - alpha_flow * grad_flow_t
 		iter_ += 1
 
 		if iter_ % 1000 == 499:
@@ -419,7 +420,6 @@ def attack(sess):
 				Vpred[a, 0] = xyz1[ml1 > 0]
 			np.save('%s/points_%d.npy' % (opt.save_dir, iter_), Vpred[0][0])
 			import matplotlib.pyplot as plt
-
 
 with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)

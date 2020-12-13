@@ -37,7 +37,7 @@ def set(training):
 		parser.add_argument("--alpha_inp", type=float, help="step size for input")
 		parser.add_argument("--alpha_flow", type=float, help="step size for flow")
 		parser.add_argument("--tau", type=float, help="tau for flow")
-		parser.add_argument("--spatial_dag", type=int, help="tau for flow")
+		parser.add_argument("--attack_type", type=str, help="type of attack", choices=['spatial_dag', 'dag', 'spatial'])
 
 	opt = parser.parse_args()
 
