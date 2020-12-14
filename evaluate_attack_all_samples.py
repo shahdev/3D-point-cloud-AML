@@ -20,7 +20,7 @@ import scipy.misc
 print(util.toMagenta("setting configurations..."))
 opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
-opt.batchSize = 1
+opt.batchSize = 20
 opt.chunkSize = 50
 
 # create directories for evaluation output
@@ -339,6 +339,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	print("Target Counter: %d"%target_counter)
 	target_counter += 1
 	source_img = np.load(source_img_path)
+	source_img = np.tile(source_img, (opt.batchSize, 1, 1, 1))
 	# target_img = np.load(target_img_path)
 	# target_renderTrans = np.load(target_renderTrans_path)
 	# target_depthGT = np.load(target_depthGT_path)
