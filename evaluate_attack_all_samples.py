@@ -7,7 +7,7 @@ import time, os, sys
 import threading
 import util
 from numpy import linalg as LA
-
+import imageio
 print(util.toYellow("======================================================="))
 print(util.toYellow("evaluate.py (evaluate/generate point cloud)"))
 print(util.toYellow("======================================================="))
@@ -16,6 +16,7 @@ import tensorflow as tf
 import data, graph, transform
 import options
 
+import scipy.misc
 print(util.toMagenta("setting configurations..."))
 opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
@@ -312,7 +313,7 @@ with tf.device("/gpu:0"):
 
 # load data
 print(util.toMagenta("loading dataset..."))
-dataloader = data.Loader(opt, loadNovel=False, loadTest=True)
+dataloader = data.Loader(opt, loadNovel=False)
 CADN = len(dataloader.CADs)
 chunkN = int(np.ceil(CADN / opt.chunkSize))
 dataloader.loadChunk(opt, loadRange=[0, opt.chunkSize])
@@ -327,23 +328,27 @@ tfConfig = tf.ConfigProto(allow_soft_placement=True)
 tfConfig.gpu_options.allow_growth = True
 
 source_img_path = 'source_image.npy'
-target_img_path = 'target_image.npy'
-target_renderTrans_path = 'target_renderTrans.npy'
-target_depthGT_path = 'target_depthGT.npy'
-target_maskGT_path = 'target_maskGT.npy'
+# target_img_path = 'target_image.npy'
+# target_renderTrans_path = 'target_renderTrans.npy'
+# target_depthGT_path = 'target_depthGT.npy'
+# target_maskGT_path = 'target_maskGT.npy'
 
-def attack(sess):
+target_counter = 0
+def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
+	global target_counter
+	target_counter += 1
 	source_img = np.load(source_img_path)
-	target_img = np.load(target_img_path)
-	target_renderTrans = np.load(target_renderTrans_path)
-	target_depthGT = np.load(target_depthGT_path)
-	target_maskGT = np.load(target_maskGT_path)
+	# target_img = np.load(target_img_path)
+	# target_renderTrans = np.load(target_renderTrans_path)
+	# target_depthGT = np.load(target_depthGT_path)
+	# target_maskGT = np.load(target_maskGT_path)
+	#
+	# source_img = np.expand_dims(source_img, axis=0)
+	# target_img = np.expand_dims(target_img, axis=0)
+	# target_renderTrans = np.expand_dims(target_renderTrans, axis=0)
+	# target_depthGT = np.expand_dims(target_depthGT, axis=0)
+	# target_maskGT = np.expand_dims(target_maskGT, axis=0)
 
-	source_img = np.expand_dims(source_img, axis=0)
-	target_img = np.expand_dims(target_img, axis=0)
-	target_renderTrans = np.expand_dims(target_renderTrans, axis=0)
-	target_depthGT = np.expand_dims(target_depthGT, axis=0)
-	target_maskGT = np.expand_dims(target_maskGT, axis=0)
 
 	runList = [XYZid, ML, loss, loss_depth, loss_mask, loss_flow, grad_inp, grad_flow]
 	zero_flow = np.zeros((opt.batchSize, 2, opt.inH, opt.inW), dtype=np.object)
@@ -376,10 +381,10 @@ def attack(sess):
 			xyz1 = xyz[a].T  # [VHW,3]
 			ml1 = ml[a].reshape([-1])  # [VHW]
 			Vpred[a, 0] = xyz1[ml1 > 0]
-		pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
-		GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
+		# pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
+		# GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
 
-		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
@@ -406,24 +411,54 @@ def attack(sess):
 			alpha_inp *= 0.75
 			alpha_flow *= 0.75
 		# tau *= 0.8
-		if iter_ % 500 == 499:
-			adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
-			np.save('%s/adv_%d.npy' % (opt.save_dir, iter_), adv_img)
+		#if iter_ % 500 == 499:
 
-			xyz, ml, _, _, _, _, _, _ = sess.run(runList, feed_dict=adv_batch)
+	adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
+	xyz, ml, _, _, _, _, _, _ = sess.run(runList, feed_dict= {inputImage: x_adv, renderTrans: target_renderTrans, depthGT: target_depthGT,
+				 maskGT: target_maskGT, flow: flow_adv})
+	Vpred = np.zeros([opt.batchSize, 1], dtype=np.object)
+	for a in range(opt.batchSize):
+		xyz1 = xyz[a].T  # [VHW,3]
+		ml1 = ml[a].reshape([-1])  # [VHW]
+		Vpred[a, 0] = xyz1[ml1 > 0]
 
-			Vpred = np.zeros([opt.batchSize, 1], dtype=np.object)
-			for a in range(opt.batchSize):
-				xyz1 = xyz[a].T  # [VHW,3]
-				ml1 = ml[a].reshape([-1])  # [VHW]
-				Vpred[a, 0] = xyz1[ml1 > 0]
-			np.save('%s/points_%d.npy' % (opt.save_dir, iter_), Vpred[0][0])
-			import matplotlib.pyplot as plt
+	for image_index in range(adv_img.shape[0]):
+		pred2GT = computeTestError(Vpred[image_index][0], target_points[image_index][0], type="pred->GT") * 100
+		GT2pred = computeTestError(target_points[image_index][0], Vpred[image_index][0], type="GT->pred") * 100
+
+		folder_name = '%d_%d'%(target_counter, image_index)
+		np.save('%s/%s/adv.npy' % (opt.save_dir, folder_name), adv_img[image_index])
+		imageio.imwrite('%s/%s/adv_image.png' % (opt.save_dir, folder_name), (adv_img[image_index]*255).astype(np.uint8))
+		np.save('%s/%s/points.npy' % (opt.save_dir, folder_name), Vpred[image_index][0])
+		imageio.imwrite('%s/%s/target_image.png' % (opt.save_dir, folder_name), (target_img[image_index]*255).astype(np.uint8))
+
+		with open("%s/%s/results.txt" % (opt.save_dir, folder_name) , "w") as file1:
+			# Writing data to a file
+			file1.write("pred2GT : %f \n GT2pred : %f" %(pred2GT, GT2pred))
 
 with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)
 	print(util.toMagenta("loading pretrained ({0})...".format(opt.load)))
 
-	attack(sess)
+	for c in range(chunkN):
+		dataloader.shipChunk()
+		idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
+		if c!=chunkN-1:
+			dataloader.thread = threading.Thread(target=dataloader.loadChunk,
+												 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
+			dataloader.thread.start()
+
+		dataChunk = dataloader.readyChunk
+		modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
+		modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
+		angleIdx = np.random.randint(24, size=[opt.batchSize])
+		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
+
+		target_img = data["image_in"][modelIdx, angleIdx]
+		target_renderTrans = data["trans"][modelIdxTile, sampleIdx]
+		target_depthGT = np.expand_dims(data["depth"][modelIdxTile, sampleIdx], axis=-1)
+		target_maskGT = np.expand_dims(data["mask"][modelIdxTile, sampleIdx], axis=-1)
+
+		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT)
 
 print(util.toYellow("======= EVALUATION DONE ======="))
