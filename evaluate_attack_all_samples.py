@@ -336,6 +336,7 @@ source_img_path = 'source_image.npy'
 target_counter = 0
 def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	global target_counter
+	print("Target Counter: %d"%target_counter)
 	target_counter += 1
 	source_img = np.load(source_img_path)
 	# target_img = np.load(target_img_path)
@@ -385,6 +386,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 		# GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
 
 		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		print(iter_, l, lm, ld, lf, flush=True) #"pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
@@ -454,10 +456,10 @@ with tf.Session(config=tfConfig) as sess:
 		angleIdx = np.random.randint(24, size=[opt.batchSize])
 		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
 
-		target_img = data["image_in"][modelIdx, angleIdx]
-		target_renderTrans = data["trans"][modelIdxTile, sampleIdx]
-		target_depthGT = np.expand_dims(data["depth"][modelIdxTile, sampleIdx], axis=-1)
-		target_maskGT = np.expand_dims(data["mask"][modelIdxTile, sampleIdx], axis=-1)
+		target_img = dataChunk["image_in"][modelIdx, angleIdx]
+		target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
+		target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
+		target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
 
 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT)
 
