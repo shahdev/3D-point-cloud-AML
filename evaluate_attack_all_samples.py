@@ -369,7 +369,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	alpha_inp = opt.alpha_inp
 	alpha_flow = opt.alpha_flow
 	iter_ = 0
-	max_iters = 10
+	max_iters = 2
 	mu = 0.85
 
 	while iter_ < max_iters:
@@ -438,7 +438,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 
 		with open("%s/%s/results.txt" % (opt.save_dir, folder_name) , "w") as file1:
 			# Writing data to a file
-			file1.write("pred2GT : %f \n GT2pred : %f" %(pred2GT, GT2pred))
+			file1.write("pred2GT : %f \n GT2pred : %f \n " %(pred2GT, GT2pred))
 
 with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)
@@ -457,12 +457,12 @@ with tf.Session(config=tfConfig) as sess:
 		modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
 		angleIdx = np.random.randint(24, size=[opt.batchSize])
 		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
+		if dataChunk is not None:
+			target_img = dataChunk["image_in"][modelIdx, angleIdx]
+			target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
+			target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
+			target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
 
-		target_img = dataChunk["image_in"][modelIdx, angleIdx]
-		target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
-		target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
-		target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
-
-		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT)
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT)
 
 print(util.toYellow("======= EVALUATION DONE ======="))
