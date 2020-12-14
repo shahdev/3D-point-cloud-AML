@@ -346,7 +346,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	# target_maskGT = np.load(target_maskGT_path)
 	#
 	# source_img = np.expand_dims(source_img, axis=0)
-	# target_img = np.expand_dims(target_img, axis=0)
+	# target_img = np.expand_dims(target_img, axis=0)`
 	# target_renderTrans = np.expand_dims(target_renderTrans, axis=0)
 	# target_depthGT = np.expand_dims(target_depthGT, axis=0)
 	# target_maskGT = np.expand_dims(target_maskGT, axis=0)
@@ -449,10 +449,10 @@ with tf.Session(config=tfConfig) as sess:
 	for c in range(chunkN):
 		dataloader.shipChunk()
 		idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
-		if c!=chunkN-1:
-			dataloader.thread = threading.Thread(target=dataloader.loadChunk,
-												 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
-			dataloader.thread.start()
+		#if c!=chunkN-1:
+		dataloader.thread = threading.Thread(target=dataloader.loadChunk,
+											 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
+		dataloader.thread.start()
 
 		dataChunk = dataloader.readyChunk
 		modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
