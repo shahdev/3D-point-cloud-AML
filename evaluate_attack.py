@@ -3,6 +3,7 @@ np.random.seed(0)
 from tensorflow import set_random_seed
 set_random_seed(2)
 import scipy.misc, scipy.io
+import imageio
 import time, os, sys
 import threading
 import util
@@ -420,7 +421,7 @@ def attack(sess):
 			np.save('%s/points_%d.npy' % (opt.save_dir, iter_), Vpred[0][0])
 
 			for image_index in range(adv_img.shape[0]):
-				scipy.misc.imsave('%s/adv_image_%d_%d.png' % (opt.save_dir, image_index, iter_), adv_img[image_index])
+				imageio.imwrite('%s/adv_image_%d_%d.png' % (opt.save_dir, image_index, iter_), adv_img[image_index])
 
 with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)
