@@ -313,7 +313,7 @@ with tf.device("/gpu:0"):
 
 # load data
 print(util.toMagenta("loading dataset..."))
-dataloader = data.Loader(opt, loadNovel=False)
+dataloader = data.Loader(opt, loadTest=True)
 CADN = len(dataloader.CADs)
 chunkN = int(np.ceil(CADN / opt.chunkSize))
 dataloader.loadChunk(opt, loadRange=[0, opt.chunkSize])
