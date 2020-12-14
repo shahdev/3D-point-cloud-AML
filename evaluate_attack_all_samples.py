@@ -418,9 +418,7 @@ def attack(sess):
 				ml1 = ml[a].reshape([-1])  # [VHW]
 				Vpred[a, 0] = xyz1[ml1 > 0]
 			np.save('%s/points_%d.npy' % (opt.save_dir, iter_), Vpred[0][0])
-
-			for image_index in range(adv_img.shape[0]):
-				scipy.misc.imsave('%s/adv_image_%d_%d.png' % (opt.save_dir, image_index, iter_), adv_img[image_index])
+			import matplotlib.pyplot as plt
 
 with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)
