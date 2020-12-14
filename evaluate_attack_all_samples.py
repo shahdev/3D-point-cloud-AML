@@ -24,6 +24,7 @@ opt.batchSize = 20
 opt.chunkSize = 50
 attack_epsilon = 8.0 / 255
 threshold = 0.4
+tau = opt.tau
 
 # create directories for evaluation output
 util.mkdir("results_{0}/{1}".format(opt.group, opt.load))
@@ -370,7 +371,6 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	iter_ = 0
 	max_iters = 10
 	mu = 0.85
-	tau = opt.tau
 
 	while iter_ < max_iters:
 		adv_batch = {inputImage: x_adv, renderTrans: target_renderTrans, depthGT: target_depthGT,
