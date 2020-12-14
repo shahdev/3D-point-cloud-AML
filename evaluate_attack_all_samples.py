@@ -369,7 +369,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	alpha_inp = opt.alpha_inp
 	alpha_flow = opt.alpha_flow
 	iter_ = 0
-	max_iters = 2
+	max_iters = 10000
 	mu = 0.85
 
 	while iter_ < max_iters:
