@@ -22,21 +22,14 @@ opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
 opt.batchSize = 20
 opt.chunkSize = 50
+attack_epsilon = 8.0 / 255
+threshold = 0.4
 
 # create directories for evaluation output
 util.mkdir("results_{0}/{1}".format(opt.group, opt.load))
 
 print(util.toMagenta("building graph..."))
 tf.reset_default_graph()
-
-alpha_inp = opt.alpha_inp
-alpha_flow = opt.alpha_flow
-iter_ = 0
-max_iters = 10
-attack_epsilon = 8.0 / 255
-threshold = 0.4
-mu = 0.85
-tau = opt.tau
 
 with tf.device("/gpu:0"):
 	VsPH = tf.placeholder(tf.float64, [None, 3])
@@ -351,7 +344,6 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	# target_depthGT = np.expand_dims(target_depthGT, axis=0)
 	# target_maskGT = np.expand_dims(target_maskGT, axis=0)
 
-
 	runList = [XYZid, ML, loss, loss_depth, loss_mask, loss_flow, grad_inp, grad_flow]
 	zero_flow = np.zeros((opt.batchSize, 2, opt.inH, opt.inW), dtype=np.object)
 
@@ -373,7 +365,13 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 	pgd_max = source_img + attack_epsilon
 	pgd_min = source_img - attack_epsilon
 
-	global iter_, alpha_inp, alpha_flow, tau
+	alpha_inp = opt.alpha_inp
+	alpha_flow = opt.alpha_flow
+	iter_ = 0
+	max_iters = 10
+	mu = 0.85
+	tau = opt.tau
+
 	while iter_ < max_iters:
 		adv_batch = {inputImage: x_adv, renderTrans: target_renderTrans, depthGT: target_depthGT,
 					 maskGT: target_maskGT, flow: flow_adv}
