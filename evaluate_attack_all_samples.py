@@ -32,7 +32,7 @@ tf.reset_default_graph()
 alpha_inp = opt.alpha_inp
 alpha_flow = opt.alpha_flow
 iter_ = 0
-max_iters = 10000
+max_iters = 10
 attack_epsilon = 8.0 / 255
 threshold = 0.4
 mu = 0.85
@@ -430,6 +430,9 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 		GT2pred = computeTestError(target_points[image_index][0], Vpred[image_index][0], type="GT->pred") * 100
 
 		folder_name = '%d_%d'%(target_counter, image_index)
+		if not os.path.isdir('%s/%s'%(opt.save_dir, folder_name)):
+			os.makedirs('%s/%s'%(opt.save_dir, folder_name))
+
 		np.save('%s/%s/adv.npy' % (opt.save_dir, folder_name), adv_img[image_index])
 		imageio.imwrite('%s/%s/adv_image.png' % (opt.save_dir, folder_name), (adv_img[image_index]*255).astype(np.uint8))
 		np.save('%s/%s/points.npy' % (opt.save_dir, folder_name), Vpred[image_index][0])
