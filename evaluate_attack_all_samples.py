@@ -328,10 +328,8 @@ source_img_path = 'source_image.npy'
 # target_maskGT_path = 'target_maskGT.npy'
 
 target_counter = 0
-def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
-	global target_counter
+def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter):
 	print("Target Counter: %d"%target_counter)
-	target_counter += 1
 	source_img = np.load(source_img_path)
 	source_img = np.tile(source_img, (opt.batchSize, 1, 1, 1))
 	# target_img = np.load(target_img_path)
@@ -427,7 +425,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT):
 		pred2GT = computeTestError(Vpred[image_index][0], target_points[image_index][0], type="pred->GT") * 100
 		GT2pred = computeTestError(target_points[image_index][0], Vpred[image_index][0], type="GT->pred") * 100
 
-		folder_name = '%d_%d'%(target_counter, image_index)
+		folder_name = '%s_%d_%d'%(opt.attack_type , target_counter, image_index)
 		if not os.path.isdir('%s/%s'%(opt.save_dir, folder_name)):
 			os.makedirs('%s/%s'%(opt.save_dir, folder_name))
 
@@ -457,12 +455,17 @@ with tf.Session(config=tfConfig) as sess:
 		modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
 		angleIdx = np.random.randint(24, size=[opt.batchSize])
 		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
+		target_counter += 1
 		if dataChunk is not None:
 			target_img = dataChunk["image_in"][modelIdx, angleIdx]
 			target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
 			target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
 			target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
-
-			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT)
+			opt.attack_type = 'spatial_dag'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+			opt.attack_type = 'dag'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+			opt.attack_type = 'spatial'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
 
 print(util.toYellow("======= EVALUATION DONE ======="))
