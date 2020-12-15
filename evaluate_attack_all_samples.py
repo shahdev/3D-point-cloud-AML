@@ -20,7 +20,7 @@ import scipy.misc
 print(util.toMagenta("setting configurations..."))
 opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
-opt.batchSize = 20
+opt.batchSize = 50
 opt.chunkSize = 50
 attack_epsilon = 8.0 / 255
 threshold = 0.4
