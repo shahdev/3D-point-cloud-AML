@@ -376,7 +376,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 			pred2GT_values.append(pred2GT)
 			GT2pred_values.append(GT2pred)
 		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
-		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT_values, "GT2pred:", GT2pred_values, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
