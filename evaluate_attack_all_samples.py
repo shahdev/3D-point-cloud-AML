@@ -279,7 +279,7 @@ with tf.device("/gpu:0"):
 	# ------ define loss ------
 	loss_depth = graph.masked_l1_loss(newDepth - depthGT, tf.equal(collision, 1)) / (opt.batchSize * opt.novelN)
 	loss_mask = graph.cross_entropy_loss(newMaskLogit, maskGT) / (opt.batchSize * opt.novelN)
-	loss_flow = flow_loss(flow)
+	loss_flow = tf.reduce_mean(flow_loss(flow))
 
 	loss = loss_mask + opt.lambdaDepth * loss_depth + tau * loss_flow
 
@@ -332,16 +332,6 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 	print("Target Counter: %d"%target_counter)
 	source_img = np.load(source_img_path)
 	source_img = np.tile(source_img, (opt.batchSize, 1, 1, 1))
-	# target_img = np.load(target_img_path)
-	# target_renderTrans = np.load(target_renderTrans_path)
-	# target_depthGT = np.load(target_depthGT_path)
-	# target_maskGT = np.load(target_maskGT_path)
-	#
-	# source_img = np.expand_dims(source_img, axis=0)
-	# target_img = np.expand_dims(target_img, axis=0)`
-	# target_renderTrans = np.expand_dims(target_renderTrans, axis=0)
-	# target_depthGT = np.expand_dims(target_depthGT, axis=0)
-	# target_maskGT = np.expand_dims(target_maskGT, axis=0)
 
 	runList = [XYZid, ML, loss, loss_depth, loss_mask, loss_flow, grad_inp, grad_flow]
 	zero_flow = np.zeros((opt.batchSize, 2, opt.inH, opt.inW), dtype=np.object)
@@ -442,30 +432,35 @@ with tf.Session(config=tfConfig) as sess:
 	util.restoreModel(opt, sess, saver)
 	print(util.toMagenta("loading pretrained ({0})...".format(opt.load)))
 
-	for c in range(chunkN):
-		dataloader.shipChunk()
-		idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
-		#if c!=chunkN-1:
-		dataloader.thread = threading.Thread(target=dataloader.loadChunk,
-											 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
-		dataloader.thread.start()
-
-		dataChunk = dataloader.readyChunk
-		modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
-		modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
-		angleIdx = np.random.randint(24, size=[opt.batchSize])
-		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
-		target_counter += 1
-		if dataChunk is not None:
-			target_img = dataChunk["image_in"][modelIdx, angleIdx]
-			target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
-			target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
-			target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
-			opt.attack_type = 'spatial_dag'
-			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
-			opt.attack_type = 'dag'
-			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
-			opt.attack_type = 'spatial'
-			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+	target_img = np.load('target_img_path.npy')
+	target_renderTrans = np.load('target_renderTrans_path.npy')
+	target_depthGT = np.load('target_depthGT_path.npy')
+	target_maskGT = np.load('target_maskGT_path.npy')
+	attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+	# for c in range(chunkN):
+	# 	dataloader.shipChunk()
+	# 	idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
+	# 	#if c!=chunkN-1:
+	# 	dataloader.thread = threading.Thread(target=dataloader.loadChunk,
+	# 										 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
+	# 	dataloader.thread.start()
+	#
+	# 	dataChunk = dataloader.readyChunk
+	# 	modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
+	# 	modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
+	# 	angleIdx = np.random.randint(24, size=[opt.batchSize])
+	# 	sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
+	# 	target_counter += 1
+	# 	if dataChunk is not None:
+	# 		target_img = dataChunk["image_in"][modelIdx, angleIdx]
+	# 		target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
+	# 		target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
+	# 		target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
+	# 		opt.attack_type = 'spatial_dag'
+	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+	# 		opt.attack_type = 'dag'
+	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+	# 		opt.attack_type = 'spatial'
+	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
 
 print(util.toYellow("======= EVALUATION DONE ======="))
