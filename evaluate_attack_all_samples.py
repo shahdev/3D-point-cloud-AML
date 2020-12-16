@@ -365,15 +365,18 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 					 maskGT: target_maskGT, flow: flow_adv}
 		xyz, ml, l, ld, lm, lf, l_grad, l_flow_grad = sess.run(runList, feed_dict=adv_batch)
 		Vpred = np.zeros([opt.batchSize, 1], dtype=np.object)
+		pred2GT_values = []
+		GT2pred_values = []
 		for a in range(opt.batchSize):
 			xyz1 = xyz[a].T  # [VHW,3]
 			ml1 = ml[a].reshape([-1])  # [VHW]
 			Vpred[a, 0] = xyz1[ml1 > 0]
-		# pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
-		# GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
-
+			pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
+			GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
+			pred2GT_values.append(pred2GT)
+			GT2pred_values.append(GT2pred)
 		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
-		print(iter_, l, lm, ld, lf, flush=True) #"pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
