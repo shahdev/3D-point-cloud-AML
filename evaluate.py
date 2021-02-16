@@ -71,6 +71,7 @@ with tf.Session(config=tfConfig) as sess:
 		dataChunk = dataloader.readyChunk
 		testN = len(dataChunk["image_in"])
 		# for each CAD model in data chunk
+		import pdb; pdb.set_trace()
 		for i in range(testN):
 			m = idx[i]
 			CAD = dataloader.CADs[m]

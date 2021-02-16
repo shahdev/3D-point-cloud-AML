@@ -86,6 +86,7 @@ with tf.Session(config=tfConfig) as sess:
 	print(util.toMagenta("start training..."))
 
 	chunkResumeN,chunkMaxN = opt.fromIt//opt.itPerChunk,opt.toIt//opt.itPerChunk
+	import pdb; pdb.set_trace()
 	# training loop
 	for c in range(chunkResumeN,chunkMaxN):
 		dataloader.shipChunk()

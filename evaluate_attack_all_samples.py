@@ -22,7 +22,7 @@ opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
 opt.batchSize = 50
 opt.chunkSize = 50
-attack_epsilon = 8.0 / 255
+attack_epsilon = 1.0 #8.0 / 255
 threshold = 0.4
 tau = opt.tau
 
@@ -376,7 +376,9 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 			pred2GT_values.append(pred2GT)
 			GT2pred_values.append(GT2pred)
 		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
-		print(iter_, l, lm, ld, lf, "pred2GT:", sum(pred2GT_values)/opt.batchSize, "GT2pred:", sum(GT2pred_values)/opt.batchSize, flush=True)
+		l2_loss = np.sum(np.power(x_adv - source_img,2))
+		linf_loss = np.max(abs(x_adv-source_img))
+		print(iter_, l, lm, ld, lf, linf_loss, "pred2GT:", sum(pred2GT_values)/opt.batchSize, "GT2pred:", sum(GT2pred_values)/opt.batchSize, flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
