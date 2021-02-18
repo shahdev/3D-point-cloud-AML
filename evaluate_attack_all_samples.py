@@ -22,7 +22,7 @@ opt = options.set(training=False)
 # opt.batchSize = opt.inputViewN
 opt.batchSize = 50
 opt.chunkSize = 50
-attack_epsilon = 1.0 #8.0 / 255
+attack_epsilon = opt.attack_epsilon
 threshold = 0.4
 tau = opt.tau
 
@@ -289,22 +289,6 @@ with tf.device("/gpu:0"):
 								+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
 								+ tau * tf.gradients(loss_flow, flow)[0]
 
-	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0)
-	#
-	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0] \
-	# 							+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
-	# 							+ tau * tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
-
-	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0], clip_norm=1.0) \
-	# 		+ opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0) \
-
-	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0], clip_norm=1.0) \
-	# 		   + opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, flow)[0], clip_norm=1.0) \
-	# 		   + tau * tf.clip_by_norm(tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
-
-	# grad_inp = tf.gradients(loss, inputImage)[0]
-	# grad_flow = tf.gradients(loss, flow)[0]
-
 # load data
 print(util.toMagenta("loading dataset..."))
 dataloader = data.Loader(opt, loadTest=True)
@@ -378,21 +362,21 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 		# print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
 		l2_loss = np.sum(np.power(x_adv - source_img,2))
 		linf_loss = np.max(abs(x_adv-source_img))
-		print(iter_, l, lm, ld, lf, linf_loss, "pred2GT:", sum(pred2GT_values)/opt.batchSize, "GT2pred:", sum(GT2pred_values)/opt.batchSize, flush=True)
+		print(iter_, l, "pred2GT:", sum(pred2GT_values)/opt.batchSize, "GT2pred:",
+			  sum(GT2pred_values)/opt.batchSize, "l2 loss: ", l2_loss, "linf loss: ",
+			  linf_loss, np.max(flow_adv), np.min(flow_adv), flush=True)
 		if iter_ == 0:
-			grad_inp_t = l_grad/LA.norm(l_grad)
-			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
+			grad_inp_t = l_grad#/LA.norm(l_grad)
+			grad_flow_t = l_flow_grad#/LA.norm(l_flow_grad)
 		else:
-			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad/LA.norm(l_grad)
-			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad/LA.norm(l_flow_grad)
+			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
+			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
 
 		if opt.attack_type == 'spatial_dag':
-			if iter_ % 2 == 0:
-				flow_adv = flow_adv - alpha_flow * grad_flow_t
-			else:
-				x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
-				x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
-				x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
+			flow_adv = flow_adv - alpha_flow * grad_flow_t
+			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
+			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
+			x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
 		elif opt.attack_type == 'dag':
 			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
 			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
@@ -402,10 +386,8 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 		iter_ += 1
 
 		if iter_ % 1000 == 499:
-			alpha_inp *= 0.75
-			alpha_flow *= 0.75
-		# tau *= 0.8
-		#if iter_ % 500 == 499:
+			alpha_inp *= 0.8
+			alpha_flow *= 1.2
 
 	adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
 	xyz, ml, _, _, _, _, _, _ = sess.run(runList, feed_dict= {inputImage: x_adv, renderTrans: target_renderTrans, depthGT: target_depthGT,
@@ -442,30 +424,29 @@ with tf.Session(config=tfConfig) as sess:
 	target_depthGT = np.load('target_depthGT_path.npy')
 	target_maskGT = np.load('target_maskGT_path.npy')
 	attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
-	# for c in range(chunkN):
-	# 	dataloader.shipChunk()
-	# 	idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
-	# 	#if c!=chunkN-1:
-	# 	dataloader.thread = threading.Thread(target=dataloader.loadChunk,
-	# 										 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
-	# 	dataloader.thread.start()
-	#
-	# 	dataChunk = dataloader.readyChunk
-	# 	modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
-	# 	modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
-	# 	angleIdx = np.random.randint(24, size=[opt.batchSize])
-	# 	sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
-	# 	target_counter += 1
-	# 	if dataChunk is not None:
-	# 		target_img = dataChunk["image_in"][modelIdx, angleIdx]
-	# 		target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
-	# 		target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
-	# 		target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
-	# 		opt.attack_type = 'spatial_dag'
-	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
-	# 		opt.attack_type = 'dag'
-	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
-	# 		opt.attack_type = 'spatial'
-	# 		attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+	for c in range(chunkN):
+		dataloader.shipChunk()
+		idx = np.arange(c*opt.chunkSize,min((c+1)*opt.chunkSize,CADN))
+		dataloader.thread = threading.Thread(target=dataloader.loadChunk,
+											 args=[opt,[(c+1)*opt.chunkSize,min((c+2)*opt.chunkSize,CADN)]])
+		dataloader.thread.start()
+
+		dataChunk = dataloader.readyChunk
+		modelIdx = np.random.permutation(opt.chunkSize)[:opt.batchSize]
+		modelIdxTile = np.tile(modelIdx, [opt.novelN, 1]).T
+		angleIdx = np.random.randint(24, size=[opt.batchSize])
+		sampleIdx = np.random.randint(opt.sampleN, size=[opt.batchSize, opt.novelN])
+		target_counter += 1
+		if dataChunk is not None:
+			target_img = dataChunk["image_in"][modelIdx, angleIdx]
+			target_renderTrans = dataChunk["trans"][modelIdxTile, sampleIdx]
+			target_depthGT = np.expand_dims(dataChunk["depth"][modelIdxTile, sampleIdx], axis=-1)
+			target_maskGT = np.expand_dims(dataChunk["mask"][modelIdxTile, sampleIdx], axis=-1)
+			opt.attack_type = 'spatial_dag'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+			opt.attack_type = 'dag'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
+			opt.attack_type = 'spatial'
+			attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, target_counter)
 
 print(util.toYellow("======= EVALUATION DONE ======="))
