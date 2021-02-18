@@ -294,7 +294,8 @@ chunkN = int(np.ceil(CADN / opt.chunkSize))
 dataloader.loadChunk(opt, loadRange=[0, opt.chunkSize])
 
 # prepare model saver/summary writer
-saver = tf.train.Saver()
+import pdb; pdb.set_trace()
+saver = tf.train.Saver(tf.trainable_variables()[1:])
 
 print(util.toYellow("======= EVALUATION START ======="))
 timeStart = time.time()
