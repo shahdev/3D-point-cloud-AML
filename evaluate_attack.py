@@ -32,8 +32,8 @@ tf.reset_default_graph()
 alpha_inp = opt.alpha_inp
 alpha_flow = opt.alpha_flow
 iter_ = 0
-max_iters = 10
-attack_epsilon = 8.0 / 255
+max_iters = 20000
+attack_epsilon = 32.0 / 255
 threshold = 0.4
 mu = 0.85
 tau = opt.tau
@@ -121,7 +121,6 @@ def flow_st(images, flows, data_format='NHWC'):
 			# go from (2, H, W) tensors to (B, 2, H, W) tensors with simple copy
 			# across batch dimension
 			batched_basegrid = tf.tile([basegrid], [batch_size, 1, 1, 1])
-
 			# sampling grid is base grid + input flows
 			sampling_grid = tf.cast(batched_basegrid, 'float32') + flows
 
@@ -379,22 +378,19 @@ def attack(sess):
 			Vpred[a, 0] = xyz1[ml1 > 0]
 		pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
 		GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
-
-		print(iter_, l, lm, ld, lf, "pred2GT:", pred2GT, "GT2pred:", GT2pred, flush=True)
+		print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.max(np.abs(x_adv-source_img)), np.max(flow_adv), np.min(flow_adv), flush=True)
 		if iter_ == 0:
-			grad_inp_t = l_grad/LA.norm(l_grad)
-			grad_flow_t = l_flow_grad/LA.norm(l_flow_grad)
+			grad_inp_t = l_grad#/LA.norm(l_grad)
+			grad_flow_t = l_flow_grad#/LA.norm(l_flow_grad)
 		else:
-			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad/LA.norm(l_grad)
-			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad/LA.norm(l_flow_grad)
+			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
+			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
 
 		if opt.attack_type == 'spatial_dag':
-			if iter_ % 2 == 0:
-				flow_adv = flow_adv - alpha_flow * grad_flow_t
-			else:
-				x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
-				x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
-				x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
+			flow_adv = flow_adv - alpha_flow * grad_flow_t
+			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
+			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
+			x_adv = np.clip(x_adv - pgd_min, 0, None) + pgd_min
 		elif opt.attack_type == 'dag':
 			x_adv = np.clip(x_adv - alpha_inp * grad_inp_t, 0.0, 1.0)
 			x_adv = np.clip(x_adv - pgd_max, None, 0) + pgd_max
@@ -404,8 +400,8 @@ def attack(sess):
 		iter_ += 1
 
 		if iter_ % 1000 == 499:
-			alpha_inp *= 0.75
-			alpha_flow *= 0.75
+			alpha_inp *= 0.8
+			alpha_flow *= 1.2
 		# tau *= 0.8
 		if iter_ % 500 == 499:
 			adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
