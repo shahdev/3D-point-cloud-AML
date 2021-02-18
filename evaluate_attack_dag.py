@@ -396,6 +396,9 @@ def attack(sess):
 				imageio.imwrite('%s/adv_image_%d_%d.png' % (opt.save_dir, image_index, iter_), (adv_img[image_index]* 255).astype(np.uint8))
 
 with tf.Session(config=tfConfig) as sess:
+	sess.run(tf.global_variables_initializer())
+	assign_op = inputImage_var.assign(np.expand_dims(np.load('target_image.npy'), axis=0))
+	sess.run(assign_op)
 	util.restoreModel(opt, sess, saver)
 	print(util.toMagenta("loading pretrained ({0})...".format(opt.load)))
 
