@@ -32,9 +32,8 @@ tf.reset_default_graph()
 alpha_inp = opt.alpha_inp
 alpha_flow = opt.alpha_flow
 iter_ = 0
-max_iters = 20000
+max_iters = 10000
 attack_epsilon = opt.attack_epsilon/255
-threshold = 0.4
 mu = 0.85
 tau = opt.tau
 
@@ -351,6 +350,7 @@ def attack(sess):
 					maskGT: target_maskGT, flow: zero_flow}
 
 	xyz, ml, l, ld, lm, lf, l_grad, l_flow = sess.run(runList, feed_dict=target_batch)
+	import pdb; pdb.set_trace()
 	target_points = np.zeros([opt.batchSize, 1], dtype=np.object)
 	for a in range(opt.batchSize):
 		xyz1 = xyz[a].T  # [VHW,3]
@@ -377,7 +377,8 @@ def attack(sess):
 			Vpred[a, 0] = xyz1[ml1 > 0]
 		pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
 		GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
-		print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.max(np.abs(x_adv-source_img)), np.max(flow_adv), np.min(flow_adv), flush=True)
+		#print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.sum(np.power(x_adv - source_img,2)), np.max(flow_adv), np.min(flow_adv), flush=True)
+		print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.sum(np.power(l_grad,2)), np.sum(np.power(l_flow_grad, 2)), flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad#/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad#/LA.norm(l_flow_grad)
@@ -399,7 +400,7 @@ def attack(sess):
 		iter_ += 1
 
 		if iter_ % 1000 == 499:
-			alpha_inp *= 0.8
+			alpha_inp *= 1.2
 			alpha_flow *= 1.2
 		# tau *= 0.8
 		if iter_ % 500 == 499:
