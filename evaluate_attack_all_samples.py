@@ -318,8 +318,7 @@ def attack(sess, target_img, target_renderTrans, target_depthGT, target_maskGT, 
 	source_img = np.tile(source_img, (opt.batchSize, 1, 1, 1))
 
 	runList = [XYZid, ML, loss, loss_depth, loss_mask, loss_flow, grad_inp, grad_flow]
-	zero_flow = np.zeros((opt.batchSize, 2, opt.inH, opt.inW), dtype=np.object)
-
+	zero_flow = np.random.rand(opt.batchSize, 2, opt.inH, opt.inW).astype(np.object) * 1e-4
 	target_batch = {inputImage: target_img, renderTrans: target_renderTrans, depthGT: target_depthGT,
 					maskGT: target_maskGT, flow: zero_flow}
 
