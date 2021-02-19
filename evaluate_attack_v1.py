@@ -380,7 +380,7 @@ def attack(sess):
 			alpha_flow *= 1.2
 		# tau *= 0.8
 		if iter_ % 500 == 499:
-			adv_img = sess.run(spatialTransformedImage, feed_dict={inputImage: x_adv, flow: flow_adv})
+			adv_img = sess.run(spatialTransformedImage, feed_dict={cleanImage:source_img, inputImage: x_adv, flow: flow_adv})
 			np.save('%s/adv_%d.npy' % (opt.save_dir, iter_), adv_img)
 
 			xyz, ml, _, _, _, _, _, _ = sess.run(runList, feed_dict=adv_batch)
