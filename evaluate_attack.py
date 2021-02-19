@@ -1,7 +1,10 @@
 import numpy as np
+import tensorflow as tf
+import data, graph, transform
+import options
+
 np.random.seed(0)
-from tensorflow import set_random_seed
-set_random_seed(2)
+tf.random.set_random_seed(2)
 import scipy.misc, scipy.io
 import imageio
 import time, os, sys
@@ -12,10 +15,6 @@ from numpy import linalg as LA
 print(util.toYellow("======================================================="))
 print(util.toYellow("evaluate.py (evaluate/generate point cloud)"))
 print(util.toYellow("======================================================="))
-
-import tensorflow as tf
-import data, graph, transform
-import options
 
 print(util.toMagenta("setting configurations..."))
 opt = options.set(training=False)
@@ -32,8 +31,9 @@ tf.reset_default_graph()
 alpha_inp = opt.alpha_inp
 alpha_flow = opt.alpha_flow
 iter_ = 0
-max_iters = 10000
+max_iters = 20000
 attack_epsilon = opt.attack_epsilon/255
+threshold = 0.4
 mu = 0.85
 tau = opt.tau
 
@@ -69,7 +69,6 @@ def computeTestError(Vs, Vt, type):
 def flow_st(images, flows, data_format='NHWC'):
 	"""Flow-based spatial transformation of images.
 	See Eq. (1) in Xiao et al. (arXiv:1801.02612).
-
 	Args:
 		images (tf.Tensor): images of shape `(B, H, W, C)` or `(B, C, H, W)`
 							depending on `data_format`.
@@ -198,7 +197,6 @@ def flow_loss(flows, padding_mode='SYMMETRIC', epsilon=1e-8):
 	"""Computes the flow loss designed to "enforce the locally smooth
 	spatial transformation perturbation". See Eq. (4) in Xiao et al.
 	(arXiv:1801.02612).
-
 	Args:
 		flows (tf.Tensor): flows of shape `(B, 2, H, W)`, where the second
 						   dimension indicates the dimension on which the pixel
@@ -286,28 +284,8 @@ with tf.device("/gpu:0"):
 	loss_flow = flow_loss(flow)
 
 	loss = loss_mask + opt.lambdaDepth * loss_depth + tau * loss_flow
-
-	grad_inp = tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0]
-
-	grad_flow = tf.gradients(loss_mask, flow)[0] \
-								+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
-								+ tau * tf.gradients(loss_flow, flow)[0]
-
-	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0] + opt.lambdaDepth * tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0)
-	#
-	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0] \
-	# 							+ opt.lambdaDepth * tf.gradients(loss_depth, flow)[0] \
-	# 							+ tau * tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
-
-	# grad_inp = tf.clip_by_norm(tf.gradients(loss_mask, inputImage)[0], clip_norm=1.0) \
-	# 		+ opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, inputImage)[0], clip_norm=1.0) \
-
-	# grad_flow = tf.clip_by_norm(tf.gradients(loss_mask, flow)[0], clip_norm=1.0) \
-	# 		   + opt.lambdaDepth * tf.clip_by_norm(tf.gradients(loss_depth, flow)[0], clip_norm=1.0) \
-	# 		   + tau * tf.clip_by_norm(tf.gradients(loss_flow, flow)[0], clip_norm=1.0)
-
-	# grad_inp = tf.gradients(loss, inputImage)[0]
-	# grad_flow = tf.gradients(loss, flow)[0]
+	grad_inp = tf.gradients(loss, inputImage)[0]
+	grad_flow = tf.gradients(loss, flow)[0]
 
 # load data
 print(util.toMagenta("loading dataset..."))
@@ -350,7 +328,6 @@ def attack(sess):
 					maskGT: target_maskGT, flow: zero_flow}
 
 	xyz, ml, l, ld, lm, lf, l_grad, l_flow = sess.run(runList, feed_dict=target_batch)
-	import pdb; pdb.set_trace()
 	target_points = np.zeros([opt.batchSize, 1], dtype=np.object)
 	for a in range(opt.batchSize):
 		xyz1 = xyz[a].T  # [VHW,3]
@@ -377,14 +354,13 @@ def attack(sess):
 			Vpred[a, 0] = xyz1[ml1 > 0]
 		pred2GT = computeTestError(Vpred[0][0], target_points[0][0], type="pred->GT") * 100
 		GT2pred = computeTestError(target_points[0][0], Vpred[0][0], type="GT->pred") * 100
-		#print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.sum(np.power(x_adv - source_img,2)), np.max(flow_adv), np.min(flow_adv), flush=True)
-		print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.sum(np.power(l_grad,2)), np.sum(np.power(l_flow_grad, 2)), flush=True)
+		print(iter_, l, "pred2GT:", pred2GT, "GT2pred:", GT2pred, np.max(np.abs(x_adv-source_img)), np.max(flow_adv), np.min(flow_adv), flush=True)
 		if iter_ == 0:
 			grad_inp_t = l_grad#/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad#/LA.norm(l_flow_grad)
 		else:
-			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
-			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
+			grad_inp_t = l_grad #mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
+			grad_flow_t = l_flow_grad #mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
 
 		if opt.attack_type == 'spatial_dag':
 			flow_adv = flow_adv - alpha_flow * grad_flow_t
@@ -400,7 +376,7 @@ def attack(sess):
 		iter_ += 1
 
 		if iter_ % 1000 == 499:
-			alpha_inp *= 1.2
+			alpha_inp *= 0.8
 			alpha_flow *= 1.2
 		# tau *= 0.8
 		if iter_ % 500 == 499:
