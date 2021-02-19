@@ -363,8 +363,8 @@ def attack(sess):
 			grad_inp_t = l_grad#/LA.norm(l_grad)
 			grad_flow_t = l_flow_grad#/LA.norm(l_flow_grad)
 		else:
-			grad_inp_t = l_grad #mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
-			grad_flow_t = l_flow_grad #mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
+			grad_inp_t = mu * grad_inp_t + (1 - mu) * l_grad#/LA.norm(l_grad)
+			grad_flow_t = mu * grad_flow_t + (1 - mu) * l_flow_grad#/LA.norm(l_flow_grad)
 
 		if opt.attack_type == 'spatial_dag':
 			flow_adv = flow_adv - alpha_flow * grad_flow_t
